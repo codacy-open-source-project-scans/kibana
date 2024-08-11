@@ -116,38 +116,77 @@ export function AddCisIntegrationFormPageProvider({
     return fieldValue;
   };
 
-  const navigateToAddIntegrationCspmPage = async () => {
+  const navigateToAddIntegrationCspmPage = async (space?: string) => {
+    const options = space
+      ? {
+          basePath: `/s/${space}`,
+          shouldUseHashForSubUrl: false,
+        }
+      : {
+          shouldUseHashForSubUrl: false,
+        };
+
     await PageObjects.common.navigateToUrl(
       'fleet', // Defined in Security Solution plugin
       'integrations/cloud_security_posture/add-integration/cspm',
-      { shouldUseHashForSubUrl: false }
+      options
     );
     await PageObjects.header.waitUntilLoadingHasFinished();
   };
 
-  const navigateToAddIntegrationCspmWithVersionPage = async (packageVersion: string) => {
+  const navigateToAddIntegrationCspmWithVersionPage = async (
+    packageVersion: string,
+    space?: string
+  ) => {
+    const options = space
+      ? {
+          basePath: `/s/${space}`,
+          shouldUseHashForSubUrl: false,
+        }
+      : {
+          shouldUseHashForSubUrl: false,
+        };
+
     await PageObjects.common.navigateToUrl(
       'fleet',
       `integrations/cloud_security_posture-${packageVersion}/add-integration/cspm`,
-      { shouldUseHashForSubUrl: false }
+      options
     );
     await PageObjects.header.waitUntilLoadingHasFinished();
   };
 
-  const navigateToAddIntegrationCnvmPage = async () => {
+  const navigateToAddIntegrationCnvmPage = async (space?: string) => {
+    const options = space
+      ? {
+          basePath: `/s/${space}`,
+          shouldUseHashForSubUrl: false,
+        }
+      : {
+          shouldUseHashForSubUrl: false,
+        };
+
     await PageObjects.common.navigateToUrl(
       'fleet', // Defined in Security Solution plugin
       'integrations/cloud_security_posture/add-integration/vuln_mgmt',
-      { shouldUseHashForSubUrl: false }
+      options
     );
     await PageObjects.header.waitUntilLoadingHasFinished();
   };
 
-  const navigateToAddIntegrationKspmPage = async () => {
+  const navigateToAddIntegrationKspmPage = async (space?: string) => {
+    const options = space
+      ? {
+          basePath: `/s/${space}`,
+          shouldUseHashForSubUrl: false,
+        }
+      : {
+          shouldUseHashForSubUrl: false,
+        };
+
     await PageObjects.common.navigateToUrl(
       'fleet', // Defined in Security Solution plugin
       'integrations/cloud_security_posture/add-integration/kspm',
-      { shouldUseHashForSubUrl: false }
+      options
     );
     await PageObjects.header.waitUntilLoadingHasFinished();
   };
@@ -315,9 +354,32 @@ export function AddCisIntegrationFormPageProvider({
     await nameField[0].type(uuidv4());
   };
 
+  const inputIntegrationName = async (text: string) => {
+    const page = await testSubjects.find('createPackagePolicy_page');
+    const nameField = await page.findAllByCssSelector('input[id="name"]');
+    await nameField[0].clearValueWithKeyboard();
+    await nameField[0].type(text);
+  };
+
   const getSecretComponentReplaceButton = async (secretButtonSelector: string) => {
     const secretComponentReplaceButton = await testSubjects.find(secretButtonSelector);
     return secretComponentReplaceButton;
+  };
+
+  const getFirstCspmIntegrationPageIntegration = async () => {
+    const integration = await testSubjects.find('integrationNameLink');
+    return await integration.getVisibleText();
+  };
+
+  const getFirstCspmIntegrationPageAgent = async () => {
+    const agent = await testSubjects.find('agentPolicyNameLink');
+    // this is assuming that the agent was just created therefor should be the first element
+    return await agent.getVisibleText();
+  };
+
+  const getAgentBasedPolicyValue = async () => {
+    const agentName = await testSubjects.find('createAgentPolicyNameField');
+    return await agentName.getAttribute('value');
   };
 
   return {
@@ -358,5 +420,9 @@ export function AddCisIntegrationFormPageProvider({
     getReplaceSecretButton,
     getSecretComponentReplaceButton,
     inputUniqueIntegrationName,
+    inputIntegrationName,
+    getFirstCspmIntegrationPageIntegration,
+    getFirstCspmIntegrationPageAgent,
+    getAgentBasedPolicyValue,
   };
 }
