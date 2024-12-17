@@ -7,14 +7,9 @@
 
 import React from 'react';
 import { render } from '@testing-library/react';
-import type { ExpandableFlyoutApi } from '@kbn/expandable-flyout';
-import { useExpandableFlyoutApi } from '@kbn/expandable-flyout';
 import { DocumentDetailsContext } from '../../shared/context';
 import { TestProviders } from '../../../../common/mock';
 import { CorrelationsOverview } from './correlations_overview';
-import { CORRELATIONS_TAB_ID } from '../../left/components/correlations_details';
-import { DocumentDetailsLeftPanelKey } from '../../shared/constants/panel_keys';
-import { LeftPanelInsightsTab } from '../../left';
 import {
   CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID,
   CORRELATIONS_RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEST_ID,
@@ -22,7 +17,8 @@ import {
   CORRELATIONS_RELATED_CASES_TEST_ID,
   CORRELATIONS_SUPPRESSED_ALERTS_TEST_ID,
   CORRELATIONS_TEST_ID,
-  SUMMARY_ROW_VALUE_TEST_ID,
+  SUMMARY_ROW_BUTTON_TEST_ID,
+  SUMMARY_ROW_TEXT_TEST_ID,
 } from './test_ids';
 import { useShowRelatedAlertsByAncestry } from '../../shared/hooks/use_show_related_alerts_by_ancestry';
 import { useShowRelatedAlertsBySameSourceEvent } from '../../shared/hooks/use_show_related_alerts_by_same_source_event';
@@ -34,12 +30,13 @@ import { useFetchRelatedAlertsBySameSourceEvent } from '../../shared/hooks/use_f
 import { useFetchRelatedAlertsBySession } from '../../shared/hooks/use_fetch_related_alerts_by_session';
 import { useTimelineDataFilters } from '../../../../timelines/containers/use_timeline_data_filters';
 import { useFetchRelatedCases } from '../../shared/hooks/use_fetch_related_cases';
+import { useNavigateToLeftPanel } from '../../shared/hooks/use_navigate_to_left_panel';
 import {
   EXPANDABLE_PANEL_HEADER_TITLE_ICON_TEST_ID,
   EXPANDABLE_PANEL_HEADER_TITLE_LINK_TEST_ID,
   EXPANDABLE_PANEL_HEADER_TITLE_TEXT_TEST_ID,
   EXPANDABLE_PANEL_TOGGLE_ICON_TEST_ID,
-} from '@kbn/security-solution-common';
+} from '../../../shared/components/test_ids';
 import { useTourContext } from '../../../../common/components/guided_onboarding_tour';
 import { AlertsCasesTourSteps } from '../../../../common/components/guided_onboarding_tour/tour_config';
 
@@ -52,23 +49,39 @@ jest.mock('../../shared/hooks/use_fetch_related_alerts_by_session');
 jest.mock('../../shared/hooks/use_fetch_related_alerts_by_ancestry');
 jest.mock('../../shared/hooks/use_fetch_related_alerts_by_same_source_event');
 jest.mock('../../shared/hooks/use_fetch_related_cases');
+jest.mock('../../shared/hooks/use_navigate_to_left_panel');
 
 const TOGGLE_ICON_TEST_ID = EXPANDABLE_PANEL_TOGGLE_ICON_TEST_ID(CORRELATIONS_TEST_ID);
 const TITLE_LINK_TEST_ID = EXPANDABLE_PANEL_HEADER_TITLE_LINK_TEST_ID(CORRELATIONS_TEST_ID);
 const TITLE_ICON_TEST_ID = EXPANDABLE_PANEL_HEADER_TITLE_ICON_TEST_ID(CORRELATIONS_TEST_ID);
 const TITLE_TEXT_TEST_ID = EXPANDABLE_PANEL_HEADER_TITLE_TEXT_TEST_ID(CORRELATIONS_TEST_ID);
 
-const SUPPRESSED_ALERTS_TEST_ID = SUMMARY_ROW_VALUE_TEST_ID(CORRELATIONS_SUPPRESSED_ALERTS_TEST_ID);
-const RELATED_ALERTS_BY_ANCESTRY_TEST_ID = SUMMARY_ROW_VALUE_TEST_ID(
+const SUPPRESSED_ALERTS_TEXT_TEST_ID = SUMMARY_ROW_TEXT_TEST_ID(
+  CORRELATIONS_SUPPRESSED_ALERTS_TEST_ID
+);
+const SUPPRESSED_ALERTS_VALUE_TEST_ID = SUMMARY_ROW_BUTTON_TEST_ID(
+  CORRELATIONS_SUPPRESSED_ALERTS_TEST_ID
+);
+const RELATED_ALERTS_BY_ANCESTRY_TEXT_TEST_ID = SUMMARY_ROW_TEXT_TEST_ID(
   CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID
 );
-const RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEST_ID = SUMMARY_ROW_VALUE_TEST_ID(
+const RELATED_ALERTS_BY_ANCESTRY_VALUE_TEST_ID = SUMMARY_ROW_BUTTON_TEST_ID(
+  CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID
+);
+const RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEXT_TEST_ID = SUMMARY_ROW_TEXT_TEST_ID(
   CORRELATIONS_RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEST_ID
 );
-const RELATED_ALERTS_BY_SESSION_TEST_ID = SUMMARY_ROW_VALUE_TEST_ID(
+const RELATED_ALERTS_BY_SAME_SOURCE_EVENT_VALUE_TEST_ID = SUMMARY_ROW_BUTTON_TEST_ID(
+  CORRELATIONS_RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEST_ID
+);
+const RELATED_ALERTS_BY_SESSION_TEXT_TEST_ID = SUMMARY_ROW_TEXT_TEST_ID(
   CORRELATIONS_RELATED_ALERTS_BY_SESSION_TEST_ID
 );
-const RELATED_CASES_TEST_ID = SUMMARY_ROW_VALUE_TEST_ID(CORRELATIONS_RELATED_CASES_TEST_ID);
+const RELATED_ALERTS_BY_SESSION_VALUE_TEST_ID = SUMMARY_ROW_BUTTON_TEST_ID(
+  CORRELATIONS_RELATED_ALERTS_BY_SESSION_TEST_ID
+);
+const RELATED_CASES_TEXT_TEST_ID = SUMMARY_ROW_TEXT_TEST_ID(CORRELATIONS_RELATED_CASES_TEST_ID);
+const RELATED_CASES_VALUE_TEST_ID = SUMMARY_ROW_BUTTON_TEST_ID(CORRELATIONS_RELATED_CASES_TEST_ID);
 
 const panelContextValue = {
   eventId: 'event id',
@@ -88,12 +101,6 @@ const renderCorrelationsOverview = (contextValue: DocumentDetailsContext) => (
 
 const NO_DATA_MESSAGE = 'No correlations data available.';
 
-const flyoutContextValue = {
-  openLeftPanel: jest.fn(),
-} as unknown as ExpandableFlyoutApi;
-
-jest.mock('@kbn/expandable-flyout');
-
 jest.mock('../../../../timelines/containers/use_timeline_data_filters', () => ({
   useTimelineDataFilters: jest.fn(),
 }));
@@ -104,23 +111,19 @@ jest.mock('../../../../common/components/guided_onboarding_tour', () => ({
 }));
 
 const originalEventId = 'originalEventId';
+const mockNavigateToLeftPanel = jest.fn();
 
 describe('<CorrelationsOverview />', () => {
-  beforeAll(() => {
-    jest.mocked(useExpandableFlyoutApi).mockReturnValue(flyoutContextValue);
+  beforeEach(() => {
     jest.mocked(useTourContext).mockReturnValue({
       hidden: false,
       setAllTourStepsHidden: jest.fn(),
-      activeStep: AlertsCasesTourSteps.viewCase,
+      activeStep: AlertsCasesTourSteps.submitCase,
       endTourStep: jest.fn(),
       incrementStep: jest.fn(),
       isTourShown: jest.fn(),
       setStep: jest.fn(),
     });
-    mockUseTimelineDataFilters.mockReturnValue({ selectedPatterns: ['index'] });
-  });
-
-  it('should render wrapper component', () => {
     jest
       .mocked(useShowRelatedAlertsByAncestry)
       .mockReturnValue({ show: false, documentId: 'event-id' });
@@ -130,7 +133,14 @@ describe('<CorrelationsOverview />', () => {
     jest.mocked(useShowRelatedAlertsBySession).mockReturnValue({ show: false });
     jest.mocked(useShowRelatedCases).mockReturnValue(false);
     jest.mocked(useShowSuppressedAlerts).mockReturnValue({ show: false, alertSuppressionCount: 0 });
+    mockUseTimelineDataFilters.mockReturnValue({ selectedPatterns: ['index'] });
+    (useNavigateToLeftPanel as jest.Mock).mockReturnValue({
+      navigateToLeftPanel: mockNavigateToLeftPanel,
+      isEnabled: true,
+    });
+  });
 
+  it('should render wrapper component', () => {
     const { getByTestId, queryByTestId } = render(renderCorrelationsOverview(panelContextValue));
     expect(queryByTestId(TOGGLE_ICON_TEST_ID)).not.toBeInTheDocument();
     expect(getByTestId(TITLE_LINK_TEST_ID)).toBeInTheDocument();
@@ -138,23 +148,23 @@ describe('<CorrelationsOverview />', () => {
     expect(queryByTestId(TITLE_TEXT_TEST_ID)).not.toBeInTheDocument();
   });
 
-  it('should not render link when isPreviewMode is true', () => {
-    jest
-      .mocked(useShowRelatedAlertsByAncestry)
-      .mockReturnValue({ show: false, documentId: 'event-id' });
-    jest
-      .mocked(useShowRelatedAlertsBySameSourceEvent)
-      .mockReturnValue({ show: false, originalEventId });
-    jest.mocked(useShowRelatedAlertsBySession).mockReturnValue({ show: false });
-    jest.mocked(useShowRelatedCases).mockReturnValue(false);
-    jest.mocked(useShowSuppressedAlerts).mockReturnValue({ show: false, alertSuppressionCount: 0 });
-
+  it('should render link without icon if in preview mode', () => {
     const { getByTestId, queryByTestId } = render(
       renderCorrelationsOverview({ ...panelContextValue, isPreviewMode: true })
     );
+    expect(getByTestId(TITLE_LINK_TEST_ID)).toBeInTheDocument();
+    expect(queryByTestId(TITLE_ICON_TEST_ID)).not.toBeInTheDocument();
+  });
+
+  it('should not render link when navigation is disabled', () => {
+    (useNavigateToLeftPanel as jest.Mock).mockReturnValue({
+      navigateToLeftPanel: mockNavigateToLeftPanel,
+      isEnabled: false,
+    });
+
+    const { getByTestId, queryByTestId } = render(renderCorrelationsOverview(panelContextValue));
     expect(queryByTestId(TOGGLE_ICON_TEST_ID)).not.toBeInTheDocument();
     expect(queryByTestId(TITLE_LINK_TEST_ID)).not.toBeInTheDocument();
-    expect(queryByTestId(TITLE_ICON_TEST_ID)).not.toBeInTheDocument();
     expect(getByTestId(TITLE_TEXT_TEST_ID)).toBeInTheDocument();
   });
 
@@ -193,11 +203,16 @@ describe('<CorrelationsOverview />', () => {
     });
 
     const { getByTestId, queryByText } = render(renderCorrelationsOverview(panelContextValue));
-    expect(getByTestId(RELATED_ALERTS_BY_ANCESTRY_TEST_ID)).toBeInTheDocument();
-    expect(getByTestId(RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEST_ID)).toBeInTheDocument();
-    expect(getByTestId(RELATED_ALERTS_BY_SESSION_TEST_ID)).toBeInTheDocument();
-    expect(getByTestId(RELATED_CASES_TEST_ID)).toBeInTheDocument();
-    expect(getByTestId(SUPPRESSED_ALERTS_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_ALERTS_BY_ANCESTRY_TEXT_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_ALERTS_BY_ANCESTRY_VALUE_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEXT_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_ALERTS_BY_SAME_SOURCE_EVENT_VALUE_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_ALERTS_BY_SESSION_TEXT_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_ALERTS_BY_SESSION_VALUE_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_CASES_TEXT_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(RELATED_CASES_VALUE_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(SUPPRESSED_ALERTS_TEXT_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(SUPPRESSED_ALERTS_VALUE_TEST_ID)).toBeInTheDocument();
     expect(queryByText(NO_DATA_MESSAGE)).not.toBeInTheDocument();
   });
 
@@ -215,11 +230,18 @@ describe('<CorrelationsOverview />', () => {
     jest.mocked(useShowSuppressedAlerts).mockReturnValue({ show: false, alertSuppressionCount: 0 });
 
     const { getByText, queryByTestId } = render(renderCorrelationsOverview(panelContextValue));
-    expect(queryByTestId(RELATED_ALERTS_BY_ANCESTRY_TEST_ID)).not.toBeInTheDocument();
-    expect(queryByTestId(RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEST_ID)).not.toBeInTheDocument();
-    expect(queryByTestId(RELATED_ALERTS_BY_SESSION_TEST_ID)).not.toBeInTheDocument();
-    expect(queryByTestId(RELATED_CASES_TEST_ID)).not.toBeInTheDocument();
-    expect(queryByTestId(SUPPRESSED_ALERTS_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_ALERTS_BY_ANCESTRY_TEXT_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_ALERTS_BY_ANCESTRY_VALUE_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_ALERTS_BY_SAME_SOURCE_EVENT_TEXT_TEST_ID)).not.toBeInTheDocument();
+    expect(
+      queryByTestId(RELATED_ALERTS_BY_SAME_SOURCE_EVENT_VALUE_TEST_ID)
+    ).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_ALERTS_BY_SESSION_TEXT_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_ALERTS_BY_SESSION_VALUE_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_CASES_TEXT_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(RELATED_CASES_VALUE_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(SUPPRESSED_ALERTS_TEXT_TEST_ID)).not.toBeInTheDocument();
+    expect(queryByTestId(SUPPRESSED_ALERTS_VALUE_TEST_ID)).not.toBeInTheDocument();
     expect(getByText(NO_DATA_MESSAGE)).toBeInTheDocument();
   });
 
@@ -233,15 +255,7 @@ describe('<CorrelationsOverview />', () => {
     );
 
     getByTestId(TITLE_LINK_TEST_ID).click();
-    expect(flyoutContextValue.openLeftPanel).toHaveBeenCalledWith({
-      id: DocumentDetailsLeftPanelKey,
-      path: { tab: LeftPanelInsightsTab, subTab: CORRELATIONS_TAB_ID },
-      params: {
-        id: panelContextValue.eventId,
-        indexName: panelContextValue.indexName,
-        scopeId: panelContextValue.scopeId,
-      },
-    });
+    expect(mockNavigateToLeftPanel).toHaveBeenCalled();
   });
 
   it('should navigate to the left section Insights tab automatically when active step is "view case"', () => {
@@ -252,15 +266,6 @@ describe('<CorrelationsOverview />', () => {
         </DocumentDetailsContext.Provider>
       </TestProviders>
     );
-
-    expect(flyoutContextValue.openLeftPanel).toHaveBeenCalledWith({
-      id: DocumentDetailsLeftPanelKey,
-      path: { tab: LeftPanelInsightsTab, subTab: CORRELATIONS_TAB_ID },
-      params: {
-        id: panelContextValue.eventId,
-        indexName: panelContextValue.indexName,
-        scopeId: panelContextValue.scopeId,
-      },
-    });
+    expect(mockNavigateToLeftPanel).toHaveBeenCalled();
   });
 });

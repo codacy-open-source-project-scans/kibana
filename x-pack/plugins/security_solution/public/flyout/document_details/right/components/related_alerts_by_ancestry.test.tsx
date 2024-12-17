@@ -9,22 +9,26 @@ import React from 'react';
 import { __IntlProvider as IntlProvider } from '@kbn/i18n-react';
 import { render } from '@testing-library/react';
 import {
-  SUMMARY_ROW_ICON_TEST_ID,
-  SUMMARY_ROW_VALUE_TEST_ID,
+  SUMMARY_ROW_TEXT_TEST_ID,
   SUMMARY_ROW_LOADING_TEST_ID,
   CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID,
+  SUMMARY_ROW_BUTTON_TEST_ID,
 } from './test_ids';
 import { RelatedAlertsByAncestry } from './related_alerts_by_ancestry';
 import { useFetchRelatedAlertsByAncestry } from '../../shared/hooks/use_fetch_related_alerts_by_ancestry';
+import { useNavigateToLeftPanel } from '../../shared/hooks/use_navigate_to_left_panel';
 
 jest.mock('../../shared/hooks/use_fetch_related_alerts_by_ancestry');
+
+const mockNavigateToLeftPanel = jest.fn();
+jest.mock('../../shared/hooks/use_navigate_to_left_panel');
 
 const documentId = 'documentId';
 const indices = ['indices'];
 const scopeId = 'scopeId';
 
-const ICON_TEST_ID = SUMMARY_ROW_ICON_TEST_ID(CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID);
-const VALUE_TEST_ID = SUMMARY_ROW_VALUE_TEST_ID(CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID);
+const TEXT_TEST_ID = SUMMARY_ROW_TEXT_TEST_ID(CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID);
+const BUTTON_TEST_ID = SUMMARY_ROW_BUTTON_TEST_ID(CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID);
 const LOADING_TEST_ID = SUMMARY_ROW_LOADING_TEST_ID(
   CORRELATIONS_RELATED_ALERTS_BY_ANCESTRY_TEST_ID
 );
@@ -37,22 +41,15 @@ const renderRelatedAlertsByAncestry = () =>
   );
 
 describe('<RelatedAlertsByAncestry />', () => {
-  it('should render many related alerts correctly', () => {
-    (useFetchRelatedAlertsByAncestry as jest.Mock).mockReturnValue({
-      loading: false,
-      error: false,
-      dataCount: 2,
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useNavigateToLeftPanel as jest.Mock).mockReturnValue({
+      navigateToLeftPanel: mockNavigateToLeftPanel,
+      isEnabled: true,
     });
-
-    const { getByTestId } = renderRelatedAlertsByAncestry();
-    expect(getByTestId(ICON_TEST_ID)).toBeInTheDocument();
-    const value = getByTestId(VALUE_TEST_ID);
-    expect(value).toBeInTheDocument();
-    expect(value).toHaveTextContent('2 alerts related by ancestry');
-    expect(getByTestId(VALUE_TEST_ID)).toBeInTheDocument();
   });
 
-  it('should render single related alerts correctly', () => {
+  it('should render single related alert correctly', () => {
     (useFetchRelatedAlertsByAncestry as jest.Mock).mockReturnValue({
       loading: false,
       error: false,
@@ -60,11 +57,20 @@ describe('<RelatedAlertsByAncestry />', () => {
     });
 
     const { getByTestId } = renderRelatedAlertsByAncestry();
-    expect(getByTestId(ICON_TEST_ID)).toBeInTheDocument();
-    const value = getByTestId(VALUE_TEST_ID);
-    expect(value).toBeInTheDocument();
-    expect(value).toHaveTextContent('1 alert related by ancestry');
-    expect(getByTestId(VALUE_TEST_ID)).toBeInTheDocument();
+    expect(getByTestId(TEXT_TEST_ID)).toHaveTextContent('Alert related by ancestry');
+    expect(getByTestId(BUTTON_TEST_ID)).toHaveTextContent('1');
+  });
+
+  it('should render multiple related alerts correctly', () => {
+    (useFetchRelatedAlertsByAncestry as jest.Mock).mockReturnValue({
+      loading: false,
+      error: false,
+      dataCount: 2,
+    });
+
+    const { getByTestId } = renderRelatedAlertsByAncestry();
+    expect(getByTestId(TEXT_TEST_ID)).toHaveTextContent('Alerts related by ancestry');
+    expect(getByTestId(BUTTON_TEST_ID)).toHaveTextContent('2');
   });
 
   it('should render loading skeleton', () => {
@@ -84,5 +90,18 @@ describe('<RelatedAlertsByAncestry />', () => {
 
     const { container } = renderRelatedAlertsByAncestry();
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('should open the expanded section to the correct tab when the number is clicked', () => {
+    (useFetchRelatedAlertsByAncestry as jest.Mock).mockReturnValue({
+      loading: false,
+      error: false,
+      dataCount: 1,
+    });
+
+    const { getByTestId } = renderRelatedAlertsByAncestry();
+    getByTestId(BUTTON_TEST_ID).click();
+
+    expect(mockNavigateToLeftPanel).toHaveBeenCalled();
   });
 });

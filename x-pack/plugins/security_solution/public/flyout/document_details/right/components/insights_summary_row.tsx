@@ -6,18 +6,22 @@
  */
 
 import type { ReactElement, VFC } from 'react';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { css } from '@emotion/react';
 import { i18n } from '@kbn/i18n';
-import {
-  EuiIcon,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiHealth,
-  EuiSkeletonText,
-  useEuiTheme,
-} from '@elastic/eui';
+import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiSkeletonText } from '@elastic/eui';
+import { LeftPanelInsightsTab } from '../../left';
 import { FormattedCount } from '../../../../common/components/formatted_number';
+import { useNavigateToLeftPanel } from '../../shared/hooks/use_navigate_to_left_panel';
+
+const LOADING = i18n.translate(
+  'xpack.securitySolution.flyout.right.insights.insightSummaryLoadingAriaLabel',
+  { defaultMessage: 'Loading' }
+);
+const BUTTON = i18n.translate(
+  'xpack.securitySolution.flyout.right.insights.insightSummaryButtonAriaLabel',
+  { defaultMessage: 'Click to see more details' }
+);
 
 export interface InsightsSummaryRowProps {
   /**
@@ -29,22 +33,17 @@ export interface InsightsSummaryRowProps {
    */
   error?: boolean;
   /**
-   * Icon to display on the left side of each row
-   */
-  icon: string;
-  /**
-   * Number of results/entries found
-   */
-  value?: number;
-  /**
    * Text corresponding of the number of results/entries
    */
   text: string | ReactElement;
   /**
-   * Optional parameter for now, will be used to display a dot on the right side
-   * (corresponding to some sort of severity?)
+   * Number of results/entries found
    */
-  color?: string; // TODO remove optional when we have guidance on what the colors will actually be
+  value: number | ReactElement;
+  /**
+   * Optional parameter used to know which subtab to navigate to when the user clicks on the button
+   */
+  expandedSubTab?: string;
   /**
    *  Prefix data-test-subj because this component will be used in multiple places
    */
@@ -52,35 +51,60 @@ export interface InsightsSummaryRowProps {
 }
 
 /**
- * Panel showing summary information as an icon, a count and text as well as a severity colored dot.
+ * Panel showing summary information.
+ * The default display is a text on the left and a count on the right, displayed with a clickable EuiBadge.
+ * The left and right section can accept a ReactElement to allow for more complex display.
  * Should be used for Entities, Threat intelligence, Prevalence, Correlations and Results components under the Insights section.
- * The colored dot is currently optional but will ultimately be mandatory (waiting on PM and UIUX).
  */
 export const InsightsSummaryRow: VFC<InsightsSummaryRowProps> = ({
   loading = false,
   error = false,
-  icon,
   value,
   text,
-  color,
+  expandedSubTab,
   'data-test-subj': dataTestSubj,
 }) => {
-  const { euiTheme } = useEuiTheme();
+  const { navigateToLeftPanel: onClick, isEnabled: isLinkEnabled } = useNavigateToLeftPanel({
+    tab: LeftPanelInsightsTab,
+    subTab: expandedSubTab,
+  });
 
-  const loadingDataTestSubj = `${dataTestSubj}Loading`;
+  const textDataTestSubj = useMemo(() => `${dataTestSubj}Text`, [dataTestSubj]);
+  const loadingDataTestSubj = useMemo(() => `${dataTestSubj}Loading`, [dataTestSubj]);
+
+  const button = useMemo(() => {
+    const buttonDataTestSubj = `${dataTestSubj}Button`;
+    const valueDataTestSubj = `${dataTestSubj}Value`;
+
+    return (
+      <>
+        {typeof value === 'number' ? (
+          <EuiBadge color="hollow">
+            <EuiButtonEmpty
+              aria-label={BUTTON}
+              onClick={onClick}
+              flush={'both'}
+              size="xs"
+              disabled={!isLinkEnabled}
+              data-test-subj={buttonDataTestSubj}
+            >
+              <FormattedCount count={value} />
+            </EuiButtonEmpty>
+          </EuiBadge>
+        ) : (
+          <div data-test-subj={valueDataTestSubj}>{value}</div>
+        )}
+      </>
+    );
+  }, [dataTestSubj, onClick, value, isLinkEnabled]);
+
   if (loading) {
     return (
       <EuiSkeletonText
         lines={1}
         size="m"
         isLoading={loading}
-        contentAriaLabel={i18n.translate(
-          'xpack.securitySolution.flyout.right.insights.insightSummaryLoadingAriaLabel',
-          {
-            defaultMessage: 'Loading insights for {value}',
-            values: { value },
-          }
-        )}
+        contentAriaLabel={LOADING}
         data-test-subj={loadingDataTestSubj}
       />
     );
@@ -90,10 +114,6 @@ export const InsightsSummaryRow: VFC<InsightsSummaryRowProps> = ({
     return null;
   }
 
-  const iconDataTestSubj = `${dataTestSubj}Icon`;
-  const valueDataTestSubj = `${dataTestSubj}Value`;
-  const colorDataTestSubj = `${dataTestSubj}Color`;
-
   return (
     <EuiFlexGroup
       gutterSize="none"
@@ -101,26 +121,8 @@ export const InsightsSummaryRow: VFC<InsightsSummaryRowProps> = ({
       alignItems={'center'}
       responsive={false}
     >
-      <EuiFlexItem grow={false}>
-        <EuiIcon
-          css={css`
-            margin: ${euiTheme.size.s};
-          `}
-          data-test-subj={iconDataTestSubj}
-          aria-label={i18n.translate(
-            'xpack.securitySolution.flyout.right.insights.insightSummaryButtonIconAriaLabel',
-            {
-              defaultMessage: 'Insight summary row icon',
-            }
-          )}
-          color="text"
-          display="empty"
-          type={icon}
-          size="m"
-        />
-      </EuiFlexItem>
       <EuiFlexItem
-        data-test-subj={valueDataTestSubj}
+        data-test-subj={textDataTestSubj}
         css={css`
           word-break: break-word;
           display: -webkit-box;
@@ -129,13 +131,9 @@ export const InsightsSummaryRow: VFC<InsightsSummaryRowProps> = ({
           overflow: hidden;
         `}
       >
-        {value && <FormattedCount count={value} />} {text}
+        {text}
       </EuiFlexItem>
-      {color && (
-        <EuiFlexItem grow={false} data-test-subj={colorDataTestSubj}>
-          <EuiHealth color={color} />
-        </EuiFlexItem>
-      )}
+      <EuiFlexItem grow={false}>{button}</EuiFlexItem>
     </EuiFlexGroup>
   );
 };

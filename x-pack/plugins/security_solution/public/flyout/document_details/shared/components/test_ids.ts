@@ -7,7 +7,6 @@
 
 import { PREFIX } from '../../../shared/test_ids';
 
-export const FLYOUT_TOUR_TEST_ID = `${PREFIX}Tour` as const;
 export const FLYOUT_PREVIEW_LINK_TEST_ID = `${PREFIX}PreviewLink` as const;
 
 export const SESSION_VIEW_UPSELL_TEST_ID = `${PREFIX}SessionViewUpsell` as const;
@@ -15,3 +14,5 @@ export const SESSION_VIEW_NO_DATA_TEST_ID = `${PREFIX}SessionViewNoData` as cons
 
 export const MISCONFIGURATIONS_TEST_ID = `${PREFIX}Misconfigurations` as const;
 export const VULNERABILITIES_TEST_ID = `${PREFIX}Vulnerabilities` as const;
+
+export const FLYOUT_FOOTER_DROPDOWN_BUTTON_TEST_ID = `${PREFIX}FooterDropdownButton` as const;

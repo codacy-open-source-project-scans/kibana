@@ -57,6 +57,16 @@ export class AgentlessAgentCreateError extends FleetError {
     super(`Error creating agentless agent in Fleet, ${message}`);
   }
 }
+export class AgentlessAgentDeleteError extends FleetError {
+  constructor(message: string) {
+    super(`Error deleting agentless agent in Fleet, ${message}`);
+  }
+}
+export class AgentlessAgentConfigError extends FleetError {
+  constructor(message: string) {
+    super(`Error validating Agentless API configuration in Fleet, ${message}`);
+  }
+}
 
 export class AgentlessPolicyExistsRequestError extends AgentPolicyError {
   constructor(message: string) {
@@ -115,6 +125,8 @@ export class SigningServiceNotFoundError extends FleetNotFoundError {}
 export class InputNotFoundError extends FleetNotFoundError {}
 export class OutputNotFoundError extends FleetNotFoundError {}
 export class PackageNotFoundError extends FleetNotFoundError {}
+export class ArchiveNotFoundError extends FleetNotFoundError {}
+
 export class PackagePolicyNotFoundError extends FleetNotFoundError<{
   /** The package policy ID that was not found */
   packagePolicyId: string;
